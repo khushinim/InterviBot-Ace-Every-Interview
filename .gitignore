@@ -1,0 +1,37 @@
+# Node.js
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Dependency directories
+frontend/node_modules/
+backend/node_modules/
+
+# Environment files
+.env
+
+# VSCode settings
+.vscode/
+
+# Python
+*.pyc
+*.pyo
+__pycache__/
+
+# Python virtual environment
+python_api/env/
+
+# Package lock files (optional, but you can include it for consistency)
+package-lock.json
+yarn.lock
+
+# System files
+.DS_Store        # macOS system file
+Thumbs.db        # Windows system file
+
+# IDE & editor files
+.idea/           # JetBrains IDEs like IntelliJ
+*.sublime-workspace
+*.sublime-project
