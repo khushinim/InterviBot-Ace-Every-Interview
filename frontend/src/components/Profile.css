@@ -1,0 +1,172 @@
+.container-pro {
+  display: block;
+  margin: 90px auto;
+  max-width: 1000px;
+  height: 100%;
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  background-color: #f9f9f9;
+}
+
+.profile-body {
+    position: relative;
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+    padding: 20px;
+    overflow: hidden;
+    transition: transform 0.6s ease-in-out;
+    height: 100%; 
+}
+
+.card-id {
+    background: linear-gradient(135deg, #f3865a, #a888ec);
+    position: relative;
+    width: 100%;
+    max-width: 300px; /* Controls the max width of the container */
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    background-color: #ffffff;
+    border-radius: 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    transition: transform 0.6s ease-in-out;
+    height: 100%; 
+}
+
+.profile-picture {
+  position: relative;
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: transform 0.6s ease-in-out;
+}
+
+.justify-center-text {
+  text-align: justify;
+  text-align-last: center;
+  width: 100%;
+  display: inline-block;
+}
+
+.details {
+  position: relative;
+  width: 100%;
+  margin-left: 30px;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  background: linear-gradient(135deg, #f3865a, #a888ec);
+  border-radius: 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  transition: transform 0.6s ease-in-out;
+  height: 100%; 
+}
+
+
+.profile-container {
+  max-width: 700px;
+  margin-top: 800px;
+  padding: 20px;
+  border-radius: 8px;
+  background-color: #ffffff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.details .profile-content {
+    position: relative;
+    width: 100%;
+    max-width: 500px; /* Controls the max width of the container */
+    display: flex;
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 20px;
+    background-color: transparent;
+    transition: transform 0.6s ease-in-out;
+    height: 100%;
+}
+
+.details button {
+  padding: 10px 15px; 
+  font-size: 14px;    
+  align-self: flex-end;
+  color: #fff;        
+  background-color: #4b3d8a; 
+  border: none;       
+  border-radius: 20px; 
+  cursor: pointer;    
+  transition: background-color 0.3s ease; /* Smooth transition for hover effect */
+  margin-bottom: 15px; /* Adds space below button */
+}
+
+.details button:hover {
+  background-color: #368184; /* Darkens color on hover */
+}
+
+.details button:active {
+  background-color: #368184; /* Darker shade on click */
+  transform: scale(0.98); /* Slight shrink effect on click */
+}
+
+.profile-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.profile-form label {
+  font-weight: bold;
+  color: #333;
+}
+
+.profile-form input,
+.profile-form textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.profile-form textarea {
+  resize: vertical;
+}
+
+.button-group {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+button {
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+button[type='submit'] {
+  color: white;
+  border: none;
+  border-radius: 20px;
+}
+
+button[type='submit']:hover {
+  background-color: #4bfd72;
+}
+
+button[type='button'] {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 4px;
+}
+
+button[type='button']:hover {
+  background-color: #218838;
+}

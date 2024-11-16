@@ -1,0 +1,5 @@
+torch
+transformers
+SpeechRecognition
+opencv-python
+Flask
