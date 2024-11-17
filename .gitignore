@@ -36,3 +36,7 @@ Thumbs.db        # Windows system file
 .idea/           # JetBrains IDEs like IntelliJ
 *.sublime-workspace
 *.sublime-project
+
+InterviBot-Ace-Every-Interview.git/
+bfg-repo-cleaner/
+
