@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import Webcam from 'react-webcam';
+import { MdVolumeOff, MdVolumeUp, MdVideocam, MdVideocamOff } from 'react-icons/md';
+import { FaRegCircle, FaStopCircle } from 'react-icons/fa'; 
 
 const AiInterview = () => {
   const [isMuted, setIsMuted] = useState(false);
@@ -10,20 +12,37 @@ const AiInterview = () => {
   const [detectedEmotion, setDetectedEmotion] = useState('');
   const [faceDetectionError, setFaceDetectionError] = useState(''); // New state for error message
   const [questions, setQuestions] = useState([]);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [userAnswer, setUserAnswer] = useState('');
+  const [answer, setAnswer] = useState('');
   const [loading, setLoading] = useState(true);
   const [jobTitle, setJobTitle] = useState('');
   const [jobDescription, setJobDescription] = useState('');
   const [experience, setExperience] = useState('');
+  const [question, setQuestion] = useState('');
+  const [followUpQuestion, setFollowUpQuestion] = useState('');
+  const [isIntroductionDone, setIsIntroductionDone] = useState(false);
+  const [interviewInProgress, setInterviewInProgress] = useState(false);
+  const [audioBlob, setAudioBlob] = useState(null); // Store the recorded audio
+  const mediaRecorderRef = useRef(null); // Reference for media recorder
+  const [isRecording, setIsRecording] = useState(false);
   const webcamRef = useRef(null);
+  const [speechText, setSpeechText] = useState('');
+
+  // Speech recognition setup (Speech-to-Text)
+  const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+  recognition.lang = 'en-US';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[event.resultIndex][0].transcript;
+    setSpeechText(transcript);
+  };
 
   useEffect(() => {
     // Start timer
     const interval = setInterval(() => {
       setTimer((prevTime) => prevTime + 1);
     }, 1000);
-
     return () => clearInterval(interval); // Cleanup on unmount
   }, []);
 
@@ -83,7 +102,7 @@ const AiInterview = () => {
           jobDescription: savedJobDescription,
           experience: savedExperience,
         });
-        setQuestions([response.data.question]); // Save the question to state
+        setQuestion("Please introduce yourself.");
       } catch (error) {
         console.error('Error fetching questions:', error);
       } finally {
@@ -94,29 +113,80 @@ const AiInterview = () => {
     generateQuestions();
   }, []);
 
-  const handleAnswerSubmit = () => {
-    setUserAnswer('');
-    setCurrentQuestionIndex(currentQuestionIndex + 1);
+  const handleUserResponse = async () => {
+    // Send the audio blob for NLP processing and follow-up questions
+    const formData = new FormData();
+    formData.append('audio', audioBlob);
+
+    try {
+      const response = await axios.post('/api/generate-question', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      const { followUp, nextQuestion } = response.data;
+      setFollowUpQuestion(followUp);
+      setQuestion(nextQuestion);
+      setAudioBlob(null); // Reset the audio blob
+    } catch (error) {
+      console.error('Error sending audio:', error);
+    }
   };
 
-  const currentQuestion = questions[currentQuestionIndex];
+  const handleIntroduction = () => {
+    // Start the interview after introduction is given
+    setIsIntroductionDone(true);
+    setQuestion("Thank you for your introduction! Let's move on to the questions.");
+  };
 
   // Function to make the avatar speak the current question
   const speakQuestion = () => {
-    if (!currentQuestion) return;
+    if (!question) return;
 
-    const utterance = new SpeechSynthesisUtterance(currentQuestion);
-    utterance.voice = speechSynthesis.getVoices().find(voice => voice.name === 'Google UK English Male'); // Example of selecting a voice
-    utterance.pitch = 1; // Set pitch (0 to 2)
-    utterance.rate = 1; // Set rate (0.1 to 10)
+    const utterance = new SpeechSynthesisUtterance(question);
+    utterance.voice = speechSynthesis.getVoices().find(voice => voice.name === 'Google UK English Male');
+    utterance.pitch = 1;
+    utterance.rate = 1;
     window.speechSynthesis.speak(utterance);
   };
 
   useEffect(() => {
-    if (currentQuestion && !loading) {
+    if (question && !loading) {
       speakQuestion();
     }
-  }, [currentQuestion, loading]);
+  }, [question, loading]);
+
+  const startRecording = () => {
+    setIsRecording(true);
+    mediaRecorderRef.current.start();
+    recognition.start();
+  };
+
+  const stopRecording = () => {
+    mediaRecorderRef.current.stop();
+    recognition.stop(); // Stop speech-to-text
+    setIsRecording(false);
+  };
+
+  const handleDataAvailable = (event) => {
+    const recordedAudio = event.data;
+    setAudioBlob(recordedAudio); // Store the recorded audio
+  };
+
+  useEffect(() => {
+    if (navigator.mediaDevices) {
+      navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+        mediaRecorderRef.current = new MediaRecorder(stream);
+        mediaRecorderRef.current.ondataavailable = handleDataAvailable;
+      });
+    }
+  }, []);
+
+  const handleSubmit = () => {
+    const userAnswer = speechText || answer; // Combine typed and speech-to-text answer
+    console.log("User Answer: ", userAnswer);
+    // Further processing (e.g., sending answer to backend or generating follow-up questions)
+  };
 
   return (
     <div style={styles.container}>
@@ -126,18 +196,25 @@ const AiInterview = () => {
           <img src={aiAvatarUrl} alt="AI Avatar" style={styles.avatar} />
         </div>
         <div style={styles.videoBox}>
+          {isCameraOff ? (
+            <div style={styles.cameraOff}>
+              Your Camera is off
+            </div>
+        ) : (
           <Webcam
             audio={!isMuted}
             screenshotFormat="image/jpeg"
             videoConstraints={{
-              facingMode: isCameraOff ? 'environment' : 'user',
+              facingMode: 'user',
             }}
             style={styles.webcam}
             ref={webcamRef}
           />
+          )}
           <div style={styles.timer}>{formatTime(timer)}</div>
         </div>
       </div>
+
       {detectedEmotion && (
         <div style={styles.emotion}>
           Detected Emotion: <span style={styles.emotionHighlight}>{detectedEmotion}</span>
@@ -146,55 +223,96 @@ const AiInterview = () => {
       {faceDetectionError && (
         <div style={styles.faceDetectionMessage}>{faceDetectionError}</div>
       )}
+
       <div style={styles.buttonContainer}>
-        <button style={styles.button} onClick={() => setIsMuted(!isMuted)}>
-          {isMuted ? 'Unmute' : 'Mute'}
-        </button>
-        <button style={styles.button} onClick={() => setIsCameraOff(!isCameraOff)}>
-          {isCameraOff ? 'Turn Camera On' : 'Turn Camera Off'}
-        </button>
+          <button
+              style={{ ...styles.button, backgroundColor: isMuted ? '#CC1C0F' : '#129818' }}
+              onClick={() => setIsMuted(!isMuted)}
+            >
+              {isMuted ? <MdVolumeOff size={24} color="white" /> : <MdVolumeUp size={24} color="white" />}
+          </button>
+
+          <button
+              style={{ ...styles.button, backgroundColor: isCameraOff ? '#CC1C0F' : '#129818' }}
+              onClick={() => setIsCameraOff(!isCameraOff)}
+            >
+              {isCameraOff ? <MdVideocamOff size={24} color="white" /> : <MdVideocam size={24} color="white" />}
+          </button>
       </div>
+
       <div>
         {/* Display Avatar and Question */}
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           <div>
-            <p>{currentQuestion}</p>
+            <p>{question}</p>
           </div>
         </div>
-        {/* User Input for Answer */}
-        <input
-          type="text"
-          value={userAnswer}
-          onChange={(e) => setUserAnswer(e.target.value)}
-          placeholder="Type your answer..."
-          style={{ padding: '8px', fontSize: '1em', width: '100%' }}
-        />
 
-        {/* Submit Button */}
-        <button
-          onClick={handleAnswerSubmit}
-          disabled={!userAnswer}
-          style={{ padding: '10px 15px', cursor: 'pointer', backgroundColor: '#4447AF', color: 'white', borderRadius: '10px', marginTop: '10px' }}
-        >
-          Next Question
-        </button>
+        {/* Answer input area */}
+      <div style={styles.answerContainer}>
+        <textarea
+          placeholder="Type your answer here..."
+          value={speechText || answer} // Either typed answer or real-time speech-to-text
+          onChange={(e) => setAnswer(e.target.value)}
+          style={styles.textarea}
+        />
+      </div>
+
+        <div style={{ display: 'flex', gap: '10px' }}>
+          {/* Record/Stop Button */}
+          <div>
+          {isRecording ? (
+            <button onClick={stopRecording} style={{ ...styles.button, backgroundColor: '#CC1C0F' }}>
+              <FaStopCircle size={24} color="white" /> Stop Recording
+            </button>
+          ) : (
+            <button onClick={startRecording} style={{ ...styles.button, backgroundColor: '#129818' }}>
+              <FaRegCircle size={24} color="white" /> Start Recording
+            </button>
+          )}
+        </div>
+
+          {/* Submit Button */}
+          <button
+            onClick= {handleSubmit}
+            disabled={!audioBlob} // Disable until audio is recorded
+            style={styles.button}
+          >
+            Submit Answer
+          </button>
+        </div>  
       </div>
     </div>
   );
 };
 
 const styles = {
+  cameraOff: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#fff',
+    color: '#000',
+    fontSize: '15px',
+    fontWeight: 'bold',
+  },
+
   container: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: '20px',
-    padding: '20px',
+    gap: '5px',
+    padding: '30px',
     background: 'linear-gradient(135deg, #E0D7FF, #F8E3DF)',
-    height: '100vh',
+    height: '100%',
   },
+
   heading: { fontSize: '28px', fontWeight: '600', color: '#333' },
+
   videoContainer: { display: 'flex', gap: '20px', width: '100%', justifyContent: 'center' },
+
   videoBox: {
     position: 'relative',
     width: '300px',
@@ -205,8 +323,22 @@ const styles = {
     boxShadow: '0 8px 24px rgba(0, 0, 0, 0.1)',
     border: '1px solid #ddd',
   },
+
+  textarea: {
+    width: '100%',
+    height: '100px',
+    padding: '10px',
+    fontSize: '16px',
+    borderRadius: '10px',
+    border: '1px solid #ccc',
+    marginBottom: '20px',
+    resize: 'none',
+  },
+
   avatar: { width: '100%', height: '100%', objectFit: 'cover' },
+
   webcam: { width: '100%', height: '100%' },
+
   timer: {
     position: 'absolute',
     top: '10px',
@@ -217,16 +349,24 @@ const styles = {
     borderRadius: '5px',
     fontSize: '14px',
   },
+
   emotion: { fontSize: '24px', fontWeight: '500', color: '#333' },
+
   emotionHighlight: { fontWeight: 'bold', fontSize: '28px', color: '#FF6347' },
+
   faceDetectionMessage: { fontSize: '24px', fontWeight: '500', color: '#FF6347' }, // Style for error message
+
   buttonContainer: { display: 'flex', gap: '10px' },
+
   button: {
     padding: '10px 15px',
     cursor: 'pointer',
     backgroundColor: '#4447AF',
     color: 'white',
-    borderRadius: '10px',
+    borderRadius: '20px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '5px',
   },
 };
 
