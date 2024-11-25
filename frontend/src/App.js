@@ -6,6 +6,8 @@ import Profile from './components/Profile';
 import ReadyForInterviewPage from './components/ReadyForInterviewPage'; // Import new component
 import AiInterview from './components/AiInterview';
 import { jwtDecode } from 'jwt-decode'; // Ensure you have jwt-decode installed
+import axios from 'axios';
+
 
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -17,28 +19,41 @@ const App = () => {
     const name = localStorage.getItem('userName');
 
     if (token) {
-      const decodedToken = jwtDecode(token);
-      const currentTime = Date.now() / 1000;
-      if (decodedToken.exp < currentTime) {
+      try {
+        const decodedToken = jwtDecode(token);
+        const currentTime = Date.now() / 1000;
+        if (decodedToken.exp < currentTime) {
+          handleLogout();
+        } else {
+          setIsAuthenticated(true);
+          setUserName(name || '');
+        }
+      } catch (error) {
+        console.error('Error decoding token:', error);
         handleLogout();
-      } else {
-        setIsAuthenticated(true);
-        setUserName(name || '');
       }
     }
   }, []);
 
-  const handleSignIn = (credentials) => {
-    setIsAuthenticated(true);
-    setUserName(credentials.name);
-    localStorage.setItem('token', credentials.token);
-    localStorage.setItem('userName', credentials.name);
+  const handleSignIn = async (credentials) => {
+    try {
+      // Perform API call to authenticate user
+      const response = await axios.post('http://localhost:5000/api/auth/login', credentials);
+      const { token, name } = response.data;
 
-    setTimeout(() => {
-      handleLogout();
-    }, 3 * 60 * 60 * 1000); // Logout after 3 hours
+      setIsAuthenticated(true);
+      setUserName(name);
+      localStorage.setItem('token', token);
+      localStorage.setItem('userName', name);
 
-    window.location.href = '/home';
+      setTimeout(() => {
+        handleLogout();
+      }, 3 * 60 * 60 * 1000); // Logout after 3 hours
+
+      window.location.href = '/home';
+    } catch (error) {
+      console.error('Error during sign-in:', error);
+    }
   };
 
   const handleLogout = () => {
@@ -49,14 +64,26 @@ const App = () => {
     window.location.href = '/login';
   };
 
-  const isProfilePage = window.location.pathname === '/profile';
-  const isReadyForInterviewPage = window.location.pathname === '/ready-for-interview'; // Check if on "Get Ready" page
-  const isAiInterviewPage = window.location.pathname === '/ai-interview'; 
-
-  const handleReadyForInterview = () => {
-    setIsInterviewReady(true);
-    window.location.href = '/interview'; // Redirect to Interview page
+  const handleReadyForInterview = async () => {
+    try {
+      // Perform API call to check if the interview setup is complete
+      const response = await axios.get('http://localhost:5000/api/interview/ready');
+      if (response.data.success) {
+        setIsInterviewReady(true);
+        window.location.href = '/interview'; // Redirect to Interview page
+      } else {
+        alert('Ensure you pass all readiness checks before proceeding.');
+      }
+    } catch (error) {
+      console.error('Error checking interview readiness:', error);
+      alert('Failed to prepare for the interview.');
+    }
   };
+
+  // Determine the current page based on URL path
+  const isProfilePage = window.location.pathname === '/profile';
+  const isReadyForInterviewPage = window.location.pathname === '/ready-for-interview';
+  const isAiInterviewPage = window.location.pathname === '/ai-interview';
 
   return (
     <div>

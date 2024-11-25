@@ -3,10 +3,12 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const session = require('express-session');
 const passport = require('passport');
+const bodyParser = require('body-parser');
 const axios = require('axios'); // Import axios
 require('dotenv').config();  // Load environment variables
 
 const authRoutes = require('./routes/auth'); // Import your auth routes
+const interviewRoutes = require('./routes/interview'); // Import interview routes
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -19,6 +21,7 @@ app.use(cors({
 }));  // Enable CORS for frontend-backend communication
 app.use(express.json({ limit: '700mb' })); // Parse incoming JSON data
 app.use(express.urlencoded({ extended: true }));
+app.use(bodyParser.json());
 
 // Session middleware (used for OAuth sessions)
 app.use(session({
@@ -51,6 +54,10 @@ passport.deserializeUser((id, done) => {
 
 // Use your authentication routes
 app.use('/auth', authRoutes);
+
+// Use the interview routes
+app.use('/interview', interviewRoutes);  // Add this line to include the interview routes
+
 // Basic route to test if the server is running
 app.get('/', (req, res) => {
   res.send('Server is running');
@@ -69,10 +76,8 @@ app.post('/detect-emotion', async (req, res) => {
   } catch (error) {
     console.error('Error in emotion detection:', error);
     res.status(500).json({ error: 'Error in facial expression analysis' });
-    
   }
 });
-
 
 // Route to analyze speech
 app.post('/analyze-speech', async (req, res) => {

@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
+import { color } from 'three/webgpu';
 
 const InterviewSimulationPage = () => {
   const [jobTitle, setJobTitle] = useState('');
   const [jobDescription, setJobDescription] = useState('');
+  const [experience, setExperience] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(''); // Handle error state
-  const [showSystemCheck, setShowSystemCheck] = useState(false);
+  const [error, setError] = useState('');
 
   const jobTitles = [
     'Software Engineer', 'Data Scientist', 'Product Manager', 'UX Designer', 'Marketing Manager',
@@ -30,7 +31,6 @@ const InterviewSimulationPage = () => {
     'Telecommunications Engineer', 'App Security Engineer', 'Cloud Security Specialist'
   ];
 
-  // Handle the job title input change and filter suggestions
   const handleJobTitleChange = (e) => {
     const value = e.target.value;
     setJobTitle(value);
@@ -44,27 +44,27 @@ const InterviewSimulationPage = () => {
     }
   };
 
-  // Handle job title suggestion click
   const handleSuggestionClick = (title) => {
     setJobTitle(title);
     setSuggestions([]);
   };
 
-  // Handle generating questions based on input and transition to system check
   const handleNext = () => {
     setLoading(true);
     setError('');
-    
-     // Save job title and description to localStorage
-     localStorage.setItem('jobTitle', jobTitle);
-     localStorage.setItem('jobDescription', jobDescription);
-     
-    // Simulate loading process
+
+    // Save job title, description, and experience to localStorage
+    localStorage.setItem('jobTitle', jobTitle);
+    localStorage.setItem('jobDescription', jobDescription);
+    localStorage.setItem('experience', experience);
+
     setLoading(false);
-    
-    // After clicking "Next", navigate to /ready-for-interview page
-    window.location.href = '/ready-for-interview'; // This will redirect the user
+
+    // Navigate to the "Ready for Interview" page
+    window.location.href = '/ready-for-interview';
   };
+
+  const isNextDisabled = !jobTitle.trim() || !jobDescription.trim() || !experience;
 
   return (
     <div
@@ -98,7 +98,6 @@ const InterviewSimulationPage = () => {
               value={jobTitle}
               onChange={handleJobTitleChange}
               style={{
-                marginLeft: '10px',
                 padding: '8px',
                 fontSize: '1em',
                 width: '100%',
@@ -157,7 +156,6 @@ const InterviewSimulationPage = () => {
               value={jobDescription}
               onChange={(e) => setJobDescription(e.target.value)}
               style={{
-                marginLeft: '10px',
                 padding: '8px',
                 fontSize: '1em',
                 width: '100%',
@@ -170,19 +168,43 @@ const InterviewSimulationPage = () => {
             />
           </label>
         </div>
+        <div style={{ marginBottom: '20px' }}>
+          <label>
+            Experience:
+            <select
+              value={experience}
+              onChange={(e) => setExperience(e.target.value)}
+              style={{
+                padding: '8px',
+                fontSize: '1em',
+                width: '100%',
+                borderRadius: '8px',
+                border: '1px solid #ccc',
+                outline: 'none',
+                color: experience === '' ? 'grey' : 'black',
+              }}
+            >
+              <option value="">Select Experience</option>
+              <option value="Fresher">Fresher</option>
+              <option value="1-3 years">1-3 years</option>
+              <option value="4-6 years">4-6 years</option>
+              <option value="More than 6 years">More than 6 years</option>
+            </select>
+          </label>
+        </div>
         <button
           onClick={handleNext}
           style={{
             padding: '10px 15px',
             fontSize: '0.9rem',
-            cursor: 'pointer',
+            cursor: isNextDisabled ? 'not-allowed' : 'pointer',
             fontFamily: '"Bodoni Moda", serif',
             border: 'none',
             borderRadius: '20px',
             color: '#FFFFFF',
-            backgroundColor: '#4447AF',
+            backgroundColor: isNextDisabled ? '#888' : '#4447AF',
           }}
-          disabled={loading}
+          disabled={isNextDisabled || loading}
         >
           {loading ? 'Loading...' : 'Next'}
         </button>
