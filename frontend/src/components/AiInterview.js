@@ -3,6 +3,7 @@ import axios from 'axios';
 import Webcam from 'react-webcam';
 import { MdVolumeOff, MdVolumeUp, MdVideocam, MdVideocamOff } from 'react-icons/md';
 import { FaRegCircle, FaStopCircle } from 'react-icons/fa'; 
+import { SentimentIntensityAnalyzer } from 'vader-sentiment';
 
 const AiInterview = () => {
   const [isMuted, setIsMuted] = useState(false);
@@ -29,6 +30,90 @@ const AiInterview = () => {
   const [speechText, setSpeechText] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [hasIntroduced, setHasIntroduced] = useState(false);
+  const [feedback, setFeedback] = useState('');
+  
+
+  //speech analysis function
+  const analyzeTone = (answer) => {
+    const result = SentimentIntensityAnalyzer.polarity_scores(answer);
+    let toneFeedback = 'Tone Analysis: ';
+
+    // Compound score thresholds for tone analysis
+    const negations = ['don\'t', 'no', 'never', 'not', 'without'];
+  const containsNegation = negations.some(negation => answer.toLowerCase().includes(negation));
+
+  if (containsNegation && result.compound > 0) {
+    // If a negation is found but the compound score is positive, adjust to negative
+    toneFeedback += 'Your tone is negative. Try to frame your responses more positively, avoiding negative phrasing like "don\'t" or "not".';
+  } else if (result.compound >= 0.5) {
+    toneFeedback += 'Your tone is very positive and confident.';
+  } else if (result.compound >= 0.2 && result.compound < 0.5) {
+    toneFeedback += 'Your tone is somewhat positive.';
+  } else if (result.compound <= -0.3) {
+    toneFeedback += 'Your tone is negative. Try to be more positive and optimistic.';
+  } else if (result.compound < -0.2 && result.compound >= -0.3) {
+    toneFeedback += 'Your tone seems somewhat negative. Consider framing your answer more positively.';
+  } else {
+    toneFeedback += 'Your tone is neutral. Consider being more engaging.';
+  }
+  
+    return toneFeedback;
+  };
+
+  const analyzePaceAndClarity = (text) => {
+    const fillerWords = ['um', 'ah', 'like', 'you know'];
+    const wordCount = text.split(' ').length;
+    const fillerWordCount = fillerWords.reduce((count, word) => count + (text.match(new RegExp(`\\b${word}\\b`, 'g')) || []).length, 0);
+    
+    let feedback = `Pace and Clarity: Your answer has ${wordCount} words.`;
+    
+    if (fillerWordCount > 3) {
+      feedback += ` Try to avoid using too many filler words like 'um' or 'ah'.`;
+    }
+
+    if (wordCount < 50) {
+      feedback += ' Your answer seems too short. Try elaborating more.';
+    } else if (wordCount > 150) {
+      feedback += ' Your answer is a bit long; try to keep it concise.';
+    }
+
+    return feedback;
+  };
+
+  const analyzeAudio = async (audioBlob) => {
+    // Create an audio context
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  
+    // Convert the audioBlob to an array buffer
+    const arrayBuffer = await audioBlob.arrayBuffer();
+  
+    // Decode the audio data
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+  
+    // Get the raw audio data (left channel for simplicity)
+    const channelData = audioBuffer.getChannelData(0);
+  
+    // Analyze volume (RMS - Root Mean Square)
+    const rms = Math.sqrt(channelData.reduce((sum, value) => sum + value * value, 0) / channelData.length);
+    const volumeFeedback = rms > 0.02 ? "Volume is good." : "Your volume seems low. Try speaking louder.";
+  
+    // Analyze speech pace (rate of speech)
+    const sampleRate = audioBuffer.sampleRate;
+    const duration = audioBuffer.duration;
+    const speechRate = (channelData.length / duration) / sampleRate;
+    let paceFeedback = "";
+  
+    if (speechRate > 0.2) {
+      paceFeedback = "Your pace is fast. Try to slow down.";
+    } else if (speechRate < 0.1) {
+      paceFeedback = "Your pace is slow. Try to speak more briskly.";
+    } else {
+      paceFeedback = "Your pace is optimal.";
+    }
+  
+    // Combine feedback
+    return `${volumeFeedback} ${paceFeedback}`;
+  };
   
 
   const startRecording = () => {
@@ -78,24 +163,33 @@ const AiInterview = () => {
   };
 
   const stopRecording = () => {
-    // Stop media recorder
+    // Stop media recorder and save the audio blob
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.ondataavailable = (event) => {
+        setAudioBlob(event.data); // Save audio blob for analysis
+      };
+    } else {
+      console.error("Media recorder not initialized.");
     }
   
     // Stop speech recognition
-    try {
-      recognitionRef.current.stop();
-      recognitionRef.current.onresult = null; // Clean up the result listener
-      console.log("Speech recognition stopped.");
-    } catch (error) {
-      console.error("Error stopping speech recognition:", error);
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+        recognitionRef.current.onresult = null; // Clean up the result listener
+        console.log("Speech recognition stopped.");
+      } catch (error) {
+        console.error("Error stopping speech recognition:", error);
+      }
+    } else {
+      console.warn("Speech recognition not initialized.");
     }
   
     // Update recording state
     setIsRecording(false);
   };
-
+  
 
   // Capture image and detect emotion at regular intervals
   const captureEmotion = async () => {
@@ -289,7 +383,7 @@ const AiInterview = () => {
   };
 
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const userAnswer = speechText || answer; // Combine typed and speech-to-text answer
     console.log("User Answer: ", userAnswer);
 
@@ -306,9 +400,25 @@ const AiInterview = () => {
 
   console.log("Submitting audio...");
 
+  // Perform tone analysis
+  const toneFeedback = analyzeTone(speechText);
+  
+  // Perform pace and clarity analysis
+  const paceClarityFeedback = analyzePaceAndClarity(speechText);
+
+  // Analyze audio
+  const audioFeedback = await analyzeAudio(audioBlob);
+
+  // Combine feedback from all analyses
+  const finalFeedback = `${toneFeedback}\n${paceClarityFeedback} ${audioFeedback}`;
+  
+  // Set the feedback for display
+  setFeedback(finalFeedback);
+  
   // Clear state after submission
   setSpeechText("");
   setAnswer("");
+
   // Only call handleIntroduction once
   if (!hasIntroduced) {
     handleIntroduction();
@@ -412,8 +522,17 @@ const AiInterview = () => {
             Submit Answer
           </button>
         </div>  
+  
       </div>
+      {/* Feedback Section */}
+      {feedback && (
+        <div style={styles.feedbackSection}>
+          <h3 style={styles.feedbackHeading}>Feedback:</h3>
+          <p style={styles.feedbackText} dangerouslySetInnerHTML={{ __html: feedback.replace(/\n/g, '<br />') }} />
+        </div>
+      )}
     </div>
+    
   );
 };
 
@@ -458,7 +577,7 @@ const styles = {
 
   textarea: {
     width: '100%',
-    height: '100%',
+    height: '80px',
     padding: '10px',
     fontSize: '16px',
     borderRadius: '10px',
