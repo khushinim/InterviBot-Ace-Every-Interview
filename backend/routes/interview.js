@@ -7,7 +7,9 @@ require('dotenv').config();
 const HUGGINGFACE_API_KEY = process.env.HUGGINGFACE_API_KEY;
 
 router.post('/generate-question', async (req, res) => {
+  console.log("Received POST request at /generate-question"); 
   const { jobTitle, jobDescription, experience } = req.body;
+  
 
   // Ensure that all required fields are provided
   if (!jobTitle || !jobDescription || !experience) {
@@ -22,8 +24,8 @@ router.post('/generate-question', async (req, res) => {
   try {
     // Send request to Hugging Face API for text generation
     const response = await axios.post(
-      'https://api-inference.huggingface.co/models/meta-llama/Llama-3.2-3B-Instruct',
-      //'https://api-inference.huggingface.co/models/Qwen/Qwen2.5-Coder-32B-Instruct',
+      //'https://api-inference.huggingface.co/models/meta-llama/Llama-3.2-3B-Instruct',
+      'https://api-inference.huggingface.co/models/Qwen/Qwen2.5-Coder-32B-Instruct',
       { inputs: prompt },
       {
         headers: {
@@ -32,6 +34,9 @@ router.post('/generate-question', async (req, res) => {
         },
       }
     );
+
+    // Debugging: Log the API response
+    console.log("Hugging Face API Response:", response.data);
 
     // Extract the generated text
     const generatedText = response.data[0]?.generated_text?.trim() || '';

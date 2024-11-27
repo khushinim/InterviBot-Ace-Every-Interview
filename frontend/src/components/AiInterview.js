@@ -25,26 +25,77 @@ const AiInterview = () => {
   const mediaRecorderRef = useRef(null); // Reference for media recorder
   const [isRecording, setIsRecording] = useState(false);
   const webcamRef = useRef(null);
+  const recognitionRef = useRef(null);
   const [speechText, setSpeechText] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [hasIntroduced, setHasIntroduced] = useState(false);
+  
 
-  // Speech recognition setup (Speech-to-Text)
-  const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-  recognition.lang = 'en-US';
-  recognition.continuous = true;
-  recognition.interimResults = true;
+  const startRecording = () => {
+    setIsRecording(true);
 
-  recognition.onresult = (event) => {
-    const transcript = event.results[event.resultIndex][0].transcript;
-    setSpeechText(transcript);
+    // Initialize speech recognition
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = "en-US";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    recognition.onresult = (event) => {
+      let finalTranscript = "";
+      let interimTranscript = "";
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+        if (result.isFinal) {
+          finalTranscript += result[0].transcript;
+        } else {
+          interimTranscript += result[0].transcript;
+        }
+      }
+
+      setSpeechText((prevText) => prevText + (finalTranscript ? " " + finalTranscript : ""));
+    };
+
+    recognition.onend = () => {
+      if (!isRecording) {
+        console.log("Speech recognition stopped.");
+      }
+    };
+
+    recognitionRef.current = recognition; // Assign to ref
+  
+    try {
+      recognitionRef.current.start();
+      console.log("Speech recognition started.");
+    } catch (error) {
+      console.error("Error starting speech recognition:", error);
+    }
+  
+    // Start media recorder
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.start();
+    }
   };
 
-  useEffect(() => {
-    // Start timer
-    const interval = setInterval(() => {
-      setTimer((prevTime) => prevTime + 1);
-    }, 1000);
-    return () => clearInterval(interval); // Cleanup on unmount
-  }, []);
+  const stopRecording = () => {
+    // Stop media recorder
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+    }
+  
+    // Stop speech recognition
+    try {
+      recognitionRef.current.stop();
+      recognitionRef.current.onresult = null; // Clean up the result listener
+      console.log("Speech recognition stopped.");
+    } catch (error) {
+      console.error("Error stopping speech recognition:", error);
+    }
+  
+    // Update recording state
+    setIsRecording(false);
+  };
+
 
   // Capture image and detect emotion at regular intervals
   const captureEmotion = async () => {
@@ -64,7 +115,8 @@ const AiInterview = () => {
         }
       } catch (error) {
         console.error('Error detecting emotion:', error);
-        setFaceDetectionError('Error detecting emotion'); // Handle any errors
+        setDetectedEmotion('');
+        setFaceDetectionError('Error detecting emotion, Face not visible.'); // Handle any errors
       }
     }
   };
@@ -89,28 +141,17 @@ const AiInterview = () => {
     const savedJobTitle = localStorage.getItem('jobTitle');
     const savedJobDescription = localStorage.getItem('jobDescription');
     const savedExperience = localStorage.getItem('experience');
-
+  
     setJobTitle(savedJobTitle);
     setJobDescription(savedJobDescription);
     setExperience(savedExperience);
-
-    // Call the API to generate interview questions based on job details
-    const generateQuestions = async () => {
-      try {
-        const response = await axios.post('http://localhost:5000/interview/generate-question', {
-          jobTitle: savedJobTitle,
-          jobDescription: savedJobDescription,
-          experience: savedExperience,
-        });
+  
+  
+        // Immediately set the first question to introduce yourself
         setQuestion("Please introduce yourself.");
-      } catch (error) {
-        console.error('Error fetching questions:', error);
-      } finally {
+      
         setLoading(false);
-      }
-    };
 
-    generateQuestions();
   }, []);
 
   const handleUserResponse = async () => {
@@ -133,10 +174,30 @@ const AiInterview = () => {
     }
   };
 
-  const handleIntroduction = () => {
-    // Start the interview after introduction is given
+   const handleIntroduction = () => {
+    setHasIntroduced(true); 
     setIsIntroductionDone(true);
     setQuestion("Thank you for your introduction! Let's move on to the questions.");
+    // Wait for 6 seconds before generating questions
+    setTimeout(generateFollowUpQuestions, 6000);
+  };
+
+  const generateFollowUpQuestions = async () => {
+    try {
+      const response = await axios.post('http://localhost:5000/generate-question', {
+        jobTitle, jobDescription, experience
+      });
+
+      if (response.data?.questions) {
+        setQuestions(response.data.questions);
+        setQuestion(response.data.questions[0]); // Display the first follow-up question
+      } else {
+        setQuestion("Sorry, I couldn't generate questions. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error generating follow-up questions:", error);
+      setQuestion("Error generating questions.");
+    }
   };
 
   // Function to make the avatar speak the current question
@@ -156,16 +217,70 @@ const AiInterview = () => {
     }
   }, [question, loading]);
 
-  const startRecording = () => {
-    setIsRecording(true);
-    mediaRecorderRef.current.start();
-    recognition.start();
-  };
+  // const startRecording = () => {
+  //   setIsRecording(true);
 
-  const stopRecording = () => {
-    mediaRecorderRef.current.stop();
-    recognition.stop(); // Stop speech-to-text
-    setIsRecording(false);
+  //   // Start media recorder
+  //   if (mediaRecorderRef.current) {
+  //     mediaRecorderRef.current.start();
+  //   }
+
+  //   // Start speech recognition
+  //   try {
+  //     recognitionRef.current.start();
+  //     console.log("Speech recognition started.");
+  //   } catch (error) {
+  //     console.error("Error starting speech recognition:", error);
+  //   }
+  // };
+
+  // const stopRecording = () => {
+  //   // Stop media recorder
+  //   if (mediaRecorderRef.current) {
+  //     mediaRecorderRef.current.stop();
+  //   }
+
+  //   // Stop speech recognition
+  //   try {
+  //     recognitionRef.current.stop();
+  //     recognitionRef.current.onresult = null;
+  //     console.log("Speech recognition stopped.");
+  //   } catch (error) {
+  //     console.error("Error stopping speech recognition:", error);
+  //   }
+
+  //   // Update recording state
+  //   setIsRecording(false);
+  // };
+
+  // Initialize media recorder
+  useEffect(() => {
+    if (navigator.mediaDevices) {
+      navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+        mediaRecorderRef.current = new MediaRecorder(stream);
+        mediaRecorderRef.current.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            setAudioBlob(event.data); // Store the audio blob when available
+          }
+        };
+      });
+    }
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      try {
+        recognitionRef.current?.stop();
+        console.log("Speech recognition stopped on component unmount.");
+      } catch (error) {
+        console.error("Error stopping recognition on unmount:", error);
+      }
+    };
+  }, []);
+
+  const handleTextChange = (e) => {
+    setSpeechText(e.target.value); // Allow the user to edit the text
   };
 
   const handleDataAvailable = (event) => {
@@ -173,24 +288,40 @@ const AiInterview = () => {
     setAudioBlob(recordedAudio); // Store the recorded audio
   };
 
-  useEffect(() => {
-    if (navigator.mediaDevices) {
-      navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-        mediaRecorderRef.current = new MediaRecorder(stream);
-        mediaRecorderRef.current.ondataavailable = handleDataAvailable;
-      });
-    }
-  }, []);
 
   const handleSubmit = () => {
     const userAnswer = speechText || answer; // Combine typed and speech-to-text answer
     console.log("User Answer: ", userAnswer);
-    // Further processing (e.g., sending answer to backend or generating follow-up questions)
-  };
+
+    // Stop recording before submitting
+    if (isRecording) {
+      stopRecording();
+    }
+
+
+  if (!audioBlob) {
+    console.error("No audio available for submission!");
+    return; // Prevent submission if no audio is recorded
+  }
+
+  console.log("Submitting audio...");
+
+  // Clear state after submission
+  setSpeechText("");
+  setAnswer("");
+  // Only call handleIntroduction once
+  if (!hasIntroduced) {
+    handleIntroduction();
+  } else {
+    // Continue with the other questions after introduction
+    // You can call your next question generation logic here
+    generateFollowUpQuestions();
+  }
+};
 
   return (
     <div style={styles.container}>
-      <h2 style={styles.heading}>AI Interview</h2>
+      <h2 style={styles.heading}> {jobTitle} Interview</h2>
       <div style={styles.videoContainer}>
         <div style={styles.videoBox}>
           <img src={aiAvatarUrl} alt="AI Avatar" style={styles.avatar} />
@@ -212,19 +343,7 @@ const AiInterview = () => {
           />
           )}
           <div style={styles.timer}>{formatTime(timer)}</div>
-        </div>
-      </div>
-
-      {detectedEmotion && (
-        <div style={styles.emotion}>
-          Detected Emotion: <span style={styles.emotionHighlight}>{detectedEmotion}</span>
-        </div>
-      )}
-      {faceDetectionError && (
-        <div style={styles.faceDetectionMessage}>{faceDetectionError}</div>
-      )}
-
-      <div style={styles.buttonContainer}>
+          <div style={styles.buttonContainer}>
           <button
               style={{ ...styles.button, backgroundColor: isMuted ? '#CC1C0F' : '#129818' }}
               onClick={() => setIsMuted(!isMuted)}
@@ -239,24 +358,36 @@ const AiInterview = () => {
               {isCameraOff ? <MdVideocamOff size={24} color="white" /> : <MdVideocam size={24} color="white" />}
           </button>
       </div>
+        </div>
+      </div>
 
-      <div>
+      {!faceDetectionError && detectedEmotion && (
+        <div style={styles.emotion}>
+          Detected Emotion: <span style={styles.emotionHighlight}>{detectedEmotion}</span>
+        </div>
+      )}
+
+      {faceDetectionError && (
+        <div style={styles.faceDetectionMessage}>{faceDetectionError}</div>
+      )}
+
+  
         {/* Display Avatar and Question */}
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           <div>
-            <p>{question}</p>
+            <p style={{margin: '10px', color: 'black', fontSize: '15px'}}>{question}</p>
           </div>
         </div>
 
         {/* Answer input area */}
       <div style={styles.answerContainer}>
         <textarea
-          placeholder="Type your answer here..."
-          value={speechText || answer} // Either typed answer or real-time speech-to-text
-          onChange={(e) => setAnswer(e.target.value)}
+          placeholder="Type your answer here or record it..."
+          value={isEditing ? answer : speechText} // Either typed answer or real-time speech-to-text
+          onChange={handleTextChange}
           style={styles.textarea}
         />
-      </div>
+      
 
         <div style={{ display: 'flex', gap: '10px' }}>
           {/* Record/Stop Button */}
@@ -274,9 +405,9 @@ const AiInterview = () => {
 
           {/* Submit Button */}
           <button
-            onClick= {handleSubmit}
-            disabled={!audioBlob} // Disable until audio is recorded
-            style={styles.button}
+            onClick={handleSubmit}
+            disabled={!audioBlob || isRecording} // Disable until audio is recorded
+            style={(!audioBlob || isRecording) ? styles.buttonDisabled : styles.button} // Conditionally apply styles
           >
             Submit Answer
           </button>
@@ -293,7 +424,7 @@ const styles = {
     alignItems: 'center',
     width: '100%',
     height: '100%',
-    backgroundColor: '#fff',
+    backgroundColor: '#fcfafa',
     color: '#000',
     fontSize: '15px',
     fontWeight: 'bold',
@@ -304,14 +435,15 @@ const styles = {
     flexDirection: 'column',
     alignItems: 'center',
     gap: '5px',
-    padding: '30px',
-    background: 'linear-gradient(135deg, #E0D7FF, #F8E3DF)',
-    height: '100%',
+    padding: '50px',
+    background: 'linear-gradient(162deg, rgba(245,206,215,1) 0%, rgba(255,255,255,1) 73%)',
+    width: '100%',
+    height: '800px',
   },
+  
+  heading: { fontSize: '28px', fontWeight: '600', color: '#333', margin: '15px' },
 
-  heading: { fontSize: '28px', fontWeight: '600', color: '#333' },
-
-  videoContainer: { display: 'flex', gap: '20px', width: '100%', justifyContent: 'center' },
+  videoContainer: { display: 'flex', gap: '20px', width: '100%', justifyContent: 'center', },
 
   videoBox: {
     position: 'relative',
@@ -321,12 +453,12 @@ const styles = {
     overflow: 'hidden',
     backgroundColor: '#fff',
     boxShadow: '0 8px 24px rgba(0, 0, 0, 0.1)',
-    border: '1px solid #ddd',
+    border: '2px solid #333',
   },
 
   textarea: {
     width: '100%',
-    height: '100px',
+    height: '100%',
     padding: '10px',
     fontSize: '16px',
     borderRadius: '10px',
@@ -350,24 +482,44 @@ const styles = {
     fontSize: '14px',
   },
 
-  emotion: { fontSize: '24px', fontWeight: '500', color: '#333' },
+  emotion: { fontSize: '24px', fontWeight: '200', color: 'black' },
 
-  emotionHighlight: { fontWeight: 'bold', fontSize: '28px', color: '#FF6347' },
+  emotionHighlight: { fontWeight: 'bold', fontSize: '28px', color: '#f73b19' },
 
-  faceDetectionMessage: { fontSize: '24px', fontWeight: '500', color: '#FF6347' }, // Style for error message
+  faceDetectionMessage: { fontSize: '24px', fontWeight: '600', color: '#f73b19' }, // Style for error message
 
-  buttonContainer: { display: 'flex', gap: '10px' },
+  buttonContainer: {
+    position: 'absolute',
+    bottom: '10px',
+    right: '100px',
+    display: 'flex',
+    gap: '10px',
+    zIndex: 10, },
 
   button: {
-    padding: '10px 15px',
+    padding: '5px 10px',
     cursor: 'pointer',
     backgroundColor: '#4447AF',
     color: 'white',
     borderRadius: '20px',
+    border: 'transparent',
     display: 'flex',
     alignItems: 'center',
     gap: '5px',
+    
   },
+
+  buttonDisabled: {
+    padding: '5px 10px',
+    cursor: 'not-allowed', // No pointer cursor when disabled
+    backgroundColor: '#d3d3d3', // Grayed out background
+    color: '#a3a3a3', // Grayed out text color
+    borderRadius: '20px',
+    border: 'transparent',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '5px',
+  }
 };
 
 export default AiInterview;

@@ -8,7 +8,7 @@ const axios = require('axios'); // Import axios
 require('dotenv').config();  // Load environment variables
 
 const authRoutes = require('./routes/auth'); // Import your auth routes
-const interviewRoutes = require('./routes/interview'); // Import interview routes
+const interview = require('./routes/interview'); // Import interview routes
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -56,7 +56,7 @@ passport.deserializeUser((id, done) => {
 app.use('/auth', authRoutes);
 
 // Use the interview routes
-app.use('/interview', interviewRoutes);  // Add this line to include the interview routes
+app.use('/generate-question', interview);  // Add this line to include the interview routes
 
 // Basic route to test if the server is running
 app.get('/', (req, res) => {
