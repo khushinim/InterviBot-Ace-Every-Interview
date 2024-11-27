@@ -36,84 +36,85 @@ const AiInterview = () => {
   //speech analysis function
   const analyzeTone = (answer) => {
     const result = SentimentIntensityAnalyzer.polarity_scores(answer);
-    let toneFeedback = 'Tone Analysis: ';
-
-    // Compound score thresholds for tone analysis
     const negations = ['don\'t', 'no', 'never', 'not', 'without'];
-  const containsNegation = negations.some(negation => answer.toLowerCase().includes(negation));
-
-  if (containsNegation && result.compound > 0) {
-    // If a negation is found but the compound score is positive, adjust to negative
-    toneFeedback += 'Your tone is negative. Try to frame your responses more positively, avoiding negative phrasing like "don\'t" or "not".';
-  } else if (result.compound >= 0.5) {
-    toneFeedback += 'Your tone is very positive and confident.';
-  } else if (result.compound >= 0.2 && result.compound < 0.5) {
-    toneFeedback += 'Your tone is somewhat positive.';
-  } else if (result.compound <= -0.3) {
-    toneFeedback += 'Your tone is negative. Try to be more positive and optimistic.';
-  } else if (result.compound < -0.2 && result.compound >= -0.3) {
-    toneFeedback += 'Your tone seems somewhat negative. Consider framing your answer more positively.';
-  } else {
-    toneFeedback += 'Your tone is neutral. Consider being more engaging.';
-  }
+    const containsNegation = negations.some(negation => answer.toLowerCase().includes(negation));
+  
+    let toneFeedback = 'Tone Analysis: ';
+    
+    if (containsNegation && result.compound > 0) {
+      toneFeedback += 'Your tone includes negations but is overall positive. Aim for more constructive phrasing.';
+    } else if (result.compound >= 0.6) {
+      toneFeedback += 'Your tone is very positive and engaging.';
+    } else if (result.compound >= 0.2) {
+      toneFeedback += 'Your tone is moderately positive. Consider adding more enthusiasm.';
+    } else if (result.compound <= -0.4) {
+      toneFeedback += 'Your tone is quite negative. Avoid negative language and try to reframe answers positively.';
+    } else if (result.compound < 0) {
+      toneFeedback += 'Your tone is slightly negative. Aim for more optimistic phrasing.';
+    } else {
+      toneFeedback += 'Your tone is neutral. Adding positivity can make your response more impactful.';
+    }
   
     return toneFeedback;
   };
+  
 
   const analyzePaceAndClarity = (text) => {
     const fillerWords = ['um', 'ah', 'like', 'you know'];
-    const wordCount = text.split(' ').length;
-    const fillerWordCount = fillerWords.reduce((count, word) => count + (text.match(new RegExp(`\\b${word}\\b`, 'g')) || []).length, 0);
-    
-    let feedback = `Pace and Clarity: Your answer has ${wordCount} words.`;
-    
+    const fillerWordPattern = new RegExp(`\\b(${fillerWords.join('|')})\\b`, 'gi');
+    const fillerWordCount = (text.match(fillerWordPattern) || []).length;
+  
+    const wordCount = text.split(/\s+/).length;
+    let feedback = `Pace and Clarity: Your answer has ${wordCount} words. `;
+  
     if (fillerWordCount > 3) {
-      feedback += ` Try to avoid using too many filler words like 'um' or 'ah'.`;
+      feedback += `You used ${fillerWordCount} filler words. Aim to reduce these for clearer responses. `;
     }
-
-    if (wordCount < 50) {
-      feedback += ' Your answer seems too short. Try elaborating more.';
-    } else if (wordCount > 150) {
-      feedback += ' Your answer is a bit long; try to keep it concise.';
+  
+    if (wordCount < 60) {
+      feedback += 'Your response is too short. Elaborate to provide more details. ';
+    } else if (wordCount > 120) {
+      feedback += 'Your response is a bit lengthy. Aim for concise, impactful answers. ';
+    } else {
+      feedback += 'Your response length is well-balanced. ';
     }
-
+  
     return feedback;
   };
-
+  
   const analyzeAudio = async (audioBlob) => {
-    // Create an audio context
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  
-    // Convert the audioBlob to an array buffer
     const arrayBuffer = await audioBlob.arrayBuffer();
-  
-    // Decode the audio data
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
   
-    // Get the raw audio data (left channel for simplicity)
+    // Volume Analysis
     const channelData = audioBuffer.getChannelData(0);
-  
-    // Analyze volume (RMS - Root Mean Square)
     const rms = Math.sqrt(channelData.reduce((sum, value) => sum + value * value, 0) / channelData.length);
-    const volumeFeedback = rms > 0.02 ? "Volume is good." : "Your volume seems low. Try speaking louder.";
+    const volumeFeedback = rms > 0.03 ? "Your volume is clear." : "Your volume is too low. Speak louder.";
   
-    // Analyze speech pace (rate of speech)
-    const sampleRate = audioBuffer.sampleRate;
-    const duration = audioBuffer.duration;
-    const speechRate = (channelData.length / duration) / sampleRate;
-    let paceFeedback = "";
+    // Speech Pace Analysis
+    const duration = audioBuffer.duration; // duration in seconds
+    const wordCount = (await transcribeAudio(audioBlob)).split(/\s+/).length;
+    const wordsPerMinute = (wordCount / duration) * 60;
   
-    if (speechRate > 0.2) {
-      paceFeedback = "Your pace is fast. Try to slow down.";
-    } else if (speechRate < 0.1) {
-      paceFeedback = "Your pace is slow. Try to speak more briskly.";
+    let paceFeedback = '';
+    if (wordsPerMinute > 160) {
+      paceFeedback = 'You are speaking too fast. Try to slow down for clarity.';
+    } else if (wordsPerMinute < 100) {
+      paceFeedback = 'You are speaking too slowly. Increase your pace slightly.';
     } else {
-      paceFeedback = "Your pace is optimal.";
+      paceFeedback = 'Your speaking pace is excellent.';
     }
   
-    // Combine feedback
     return `${volumeFeedback} ${paceFeedback}`;
   };
+  
+  // Placeholder for audio transcription (replace with SpeechRecognition or a suitable API)
+  const transcribeAudio = async (audioBlob) => {
+    // Implement transcription logic or integrate an API like Google Cloud Speech-to-Text.
+    return 'Transcribed text placeholder';
+  };
+  
   
 
   const startRecording = () => {
@@ -268,12 +269,25 @@ const AiInterview = () => {
     }
   };
 
+
+  // const questionsrel = [
+  //   "What do you mean by cloud computing?",
+  //   "What is the difference between AWS EC2 and AWS Lambda?",
+  //   "What is a virtual machine (VM), and how does it differ from containers?",
+  //   "Why load balancing is important in cloud computing?",
+
+  // ];
+  
+  // const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0); // Track the current question index
+
+  
    const handleIntroduction = () => {
     setHasIntroduced(true); 
     setIsIntroductionDone(true);
     setQuestion("Thank you for your introduction! Let's move on to the questions.");
     // Wait for 6 seconds before generating questions
     setTimeout(generateFollowUpQuestions, 6000);
+    //setTimeout(() => setQuestion(questionsrel[currentQuestionIndex]), 6000);
   };
 
   const generateFollowUpQuestions = async () => {
@@ -426,6 +440,13 @@ const AiInterview = () => {
     // Continue with the other questions after introduction
     // You can call your next question generation logic here
     generateFollowUpQuestions();
+  //   const nextQuestionIndex = currentQuestionIndex + 1;
+  //   if (nextQuestionIndex < questionsrel.length) {
+  //     setCurrentQuestionIndex(nextQuestionIndex);
+  //     setQuestion(questionsrel[nextQuestionIndex]);
+  //   } else {
+  //     setQuestion("Thank you for completing the interview!");
+  //   }
   }
 };
 

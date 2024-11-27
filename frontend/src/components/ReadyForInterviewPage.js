@@ -63,7 +63,7 @@ const ReadyForInterview = () => {
         );
       }
 
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       if (locationCheck && !screenCheck) { // Only prompt for screen share once
         try {
@@ -74,7 +74,7 @@ const ReadyForInterview = () => {
         }
       }
 
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       if (screenCheck) {
         setPictureCheck(true);
@@ -96,45 +96,44 @@ const ReadyForInterview = () => {
       microphoneCheck &&
       internetCheck &&
       locationCheck &&
-      screenCheck &&
-      pictureCheck
+      screenCheck
     ) {
       setAllChecksPassed(true);
     } else {
       setAllChecksPassed(false);
     }
-  }, [browserCheck, webcamCheck, microphoneCheck, internetCheck, locationCheck, screenCheck, pictureCheck]);
+  }, [browserCheck, webcamCheck, microphoneCheck, internetCheck, locationCheck, screenCheck]);
 
-  const captureImage = () => {
-    const canvas = canvasRef.current;
-    const video = videoRef.current;
+  // const captureImage = () => {
+  //   const canvas = canvasRef.current;
+  //   const video = videoRef.current;
 
-    // Set the canvas size to the video size
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+  //   // Set the canvas size to the video size
+  //   canvas.width = video.videoWidth;
+  //   canvas.height = video.videoHeight;
 
-    // Draw the video frame onto the canvas
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  //   // Draw the video frame onto the canvas
+  //   const ctx = canvas.getContext('2d');
+  //   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Get the image data from the canvas and update the state
-    const imageData = canvas.toDataURL('image/png');
-    setCapturedImage(imageData);
-    setPictureCheck(true); // Indicate that the picture is taken
-  };
+  //   // Get the image data from the canvas and update the state
+  //   const imageData = canvas.toDataURL('image/png');
+  //   setCapturedImage(imageData);
+  //   setPictureCheck(true); // Indicate that the picture is taken
+  // };
 
   return (
     <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '100px' }}>
       <div
         style={{
-          padding: '20px',
+          padding: '10px',
           width: '260px',
           height: '457px',
           borderRadius: '6px',
           boxShadow: '0 3px 6px 0 rgba(173, 173, 173, 0.2)',
           border: 'solid 1px #ffd2b4',
           backgroundColor: '#FFDFD3',
-          margin: '24px',
+          margin: '20px',
         }}
       >
         <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#262626', marginTop: '16px', marginBottom: '24px' }}>
@@ -152,7 +151,7 @@ const ReadyForInterview = () => {
           />
           <label className="prerequisite-label">Screen check</label>
         </div>
-        <CheckItem label="Take Picture" isChecked={pictureCheck} />
+        {/*<CheckItem label="Take Picture" isChecked={pictureCheck} />*/}
         <div style={{ textAlign: 'center' }}>
         {allChecksPassed && (
         <div>
@@ -182,7 +181,7 @@ const ReadyForInterview = () => {
         <div style={{ textAlign: 'center' }}>
           {browserCheck === true ? (
             <>
-              <h2 style={{ color: 'green' }}>Great!</h2>
+              <h2 style={{ color: 'green' }}>Browser is compatible!</h2>
               <img
                 src="https://rp.merittracpariksha.com/sdk/images/correct.png"
                 alt="Green tick"
@@ -276,7 +275,25 @@ const ReadyForInterview = () => {
           ) : (
             <p>Checking Internet...</p>
           )}
-           {/* Location Check */}
+           
+    {/* Display webcam video feed and capture button */}
+    {/* {pictureCheck === true && (
+        <div style={{ textAlign: 'center', marginTop: '50px' }}>
+          <h3>Take Picture of Your Face</h3>
+          <video ref={videoRef} autoPlay width="400" height="300" />
+          <canvas ref={canvasRef} style={{ display: 'none' }} />
+          <button onClick={captureImage}>Capture Image</button>
+
+          {capturedImage && (
+            <div>
+              <h4>Your Captured Picture:</h4>
+              <img src={capturedImage} alt="Captured" width="200" />
+            </div>
+          )}
+        </div>
+      )} */}
+    </div>
+    {/* Location Check */}
   <div style={{ textAlign: 'center' }}>
     {locationCheck === true ? (
       <>
@@ -299,23 +316,6 @@ const ReadyForInterview = () => {
     ) : (
       <p>Checking Location...</p>
     )}
-    {/* Display webcam video feed and capture button */}
-    {pictureCheck === true && (
-        <div style={{ textAlign: 'center', marginTop: '50px' }}>
-          <h3>Take Picture of Your Face</h3>
-          <video ref={videoRef} autoPlay width="400" height="300" />
-          <canvas ref={canvasRef} style={{ display: 'none' }} />
-          <button onClick={captureImage}>Capture Image</button>
-
-          {capturedImage && (
-            <div>
-              <h4>Your Captured Picture:</h4>
-              <img src={capturedImage} alt="Captured" width="200" />
-            </div>
-          )}
-        </div>
-      )}
-    </div>
         </div>
       </div>
     </div>
